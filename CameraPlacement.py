@@ -5,33 +5,43 @@ from win32api import GetSystemMetrics
 import time
 import numpy as np
 
-# function to display the coordinates of
-# of the points clicked on the image
-midLine = []
+# Image path
+imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\map3.PNG'
+
 numCircles = 10
+
+midLine = []
 heights = []
 heightPix = []
-for x in range(30,60):
-    heights.append(x*0.1)
-# heights = [x*0.1 for x in range(30,60)] #average height of light poles is 9 to 14 feet ~ 4.2m max
 centerPoints = []
 scalePoints = []
-scaleConst = 10
 mountingPoints = []
-area_scaling_factor = 1.4
-imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\map3.PNG'
 selectedPoints = []
+
 buffer_length = 5   #buffer length before the midpoint from which viewing must begin
 theta = (66.75*math.pi)/180    #diagonal angle FOV of camera (GIVEN!!)
 phi = 2*math.atan(0.8*math.tan(theta/2))  #angle of view larger side of camera resolution (4 in 4:3)
 omega = 2*math.atan(0.6*math.tan(theta/2))     #angle of view larger side of camera resolution (3 in 4:3)
 alpha = 0   #set later on in the code based on the height of the camera [angle of camera from negative z axis]
 
+# heights = [x*0.1 for x in range(30,60)] #average height of light poles is 9 to 14 feet ~ 4.2m max
+for x in range(30,60):
+    heights.append(x*0.1)
+
 point1 = [0,0]  #bottom right point of rectangle
 point2 = [0,0]  #bottom left point of rectangle
 point3 = [0,0]  #top left point of rectangle
 point4 = [0,0]  #top right point of rectangle
 
+# structure to represent a co-ordinate
+# point 
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+# function to display the coordinates of
+# of the points clicked on the image
 def getBorderContour_road(img):
     low_yellow = (175,230,250)
     high_yellow = (185,235,255)
@@ -91,10 +101,8 @@ def getBorderContour_text(img):
                 # f.write(str(x) + "," + str(y) + "\n")
 
 def get_resized_for_display_img(img):
-
-    # get screen height and width
     screen_w, screen_h = GetSystemMetrics(0), GetSystemMetrics(1)
-
+    #print("screen size",screen_w, screen_h)
     h,w,channel_nbr = img.shape
     # img get w of screen and adapt h
     h = h * (screen_w / w)
@@ -109,17 +117,49 @@ def get_resized_for_display_img(img):
 
 def point_gen(point1,slope,distance,dxn=1):
     slope_squared = pow(slope,2)
-    x = point1[0] + dxn*distance*abs(pow(1/(1+slope_squared),0.5))
+    x = point1[0] + distance*abs(pow(1/(1+slope_squared),0.5))
     y = point1[1] + dxn*distance*slope*abs(pow(1/(1+slope_squared),0.5))
     # print(x,y)
-    return (int(x),int(y))
+    return [int(x),int(y)]
+
+def point_gen_2(source, m, l):
+    # m is the slope of line, and the
+    # required Point lies distance l
+    # away from the source Point
+    a = Point(0, 0)
+    b = Point(0, 0)
+
+    # slope is 0
+    if m == 0:
+        a.x = source.x + l
+        a.y = source.y
+
+        b.x = source.x - l
+        b.y = source.y
+
+    # if slope is infinite
+    elif math.isfinite(m) is False:
+        a.x = source.x
+        a.y = source.y + l
+
+        b.x = source.x
+        b.y = source.y - l
+    else:
+        dx = (l / math.sqrt(1 + (m * m)))
+        dy = m * dx
+        a.x = source.x + dx
+        a.y = source.y + dy
+        b.x = source.x - dx
+        b.y = source.y - dy
+    
+    return [[a.x,a.y],[b.x,b.y]]
 
 def distanceCompare(result, camera_value):
     if(result >= camera_value) and (result <= camera_value*1.3):
         return True
     return False
 
-def click_event_0(event, x, y, flags, params):
+def click_event_mountingpoints(event, x, y, flags, params):
 
 # checking for left mouse clicks
     if event == cv2.EVENT_LBUTTONDOWN:
@@ -156,68 +196,82 @@ def click_event_1(event, x, y, flags, params):
 # driver function
 if __name__=="__main__":
 
-# reading the image
+    # reading and resizing the image
     img = cv2.imread(imagePath, 1)
     img = get_resized_for_display_img(img)
-# displaying the image
+
+    # displaying the image
     cv2.imshow('image', img)
 
-# setting mouse handler for the image
-# and calling the click_event_1() function
+    # Scale for pix to meter conversion
     scaleConst = int(input('Scale: '))
+
+    # setting mouse handler for the image
+    # and calling the click_event_1() function
     cv2.setMouseCallback('image', click_event_1)
+
     # wait for a key to be pressed to exit
     cv2.waitKey(0)
-    time.sleep(2)
+    time.sleep(1)
 
+    # Get building borders
     getBorderContour_text(img)
+
     # Distance between selected midline extreme points
     distance = abs(pow(pow(midLine[0][0] - midLine[1][0],2) + pow(midLine[0][1] - midLine[1][1],2),0.5))
 
-    diameter = (distance/numCircles) 
+    # Slope of midline
     slope_midline = ( midLine[1][1]- midLine[0][1])/(midLine[1][0]-midLine[0][0])
 
     # Pixel distance of scale in image
     scale = abs(pow(pow(scalePoints[0][0] - scalePoints[1][0],2) + pow(scalePoints[0][1] - scalePoints[1][1],2),0.5))
-    # actual distance = (scale constant)*(obtained magnitude)/scale
+    # actual distance(m) = (scale constant)*(obtained magnitude)/scale
 
-    image = get_resized_for_display_img(image)
+    # Display border contour results
+    image = get_resized_for_display_img(img)
     cv2.imshow('image', image)
     cv2.waitKey(0)
+
+    # Converting height in meter array to height in pixel array
     for height in heights:
         heightPix.append(height*scale/scaleConst)
-    
-    #the slope associated w/ line of sight of camera
+
+    img = cv2.imread(imagePath, 1)
 
     #distance b/w midpoints of closest edge and farthest edge of projected rectangle
-    full_mag_rect_dist = h*(math.tan(alpha+(phi/2)) - math.tan(alpha - (phi/2)))
+    full_mag_rect_dist = heightPix[0]*(math.tan(alpha+(phi/2)) - math.tan(alpha - (phi/2)))
+
+    midline_0 = Point(midLine[0][0],midLine[0][1]) 
 
     #finding mid point of closest edge of first projected rectangle 
-    mid_point_closer_edge = point_gen(midLine[0], slope_midline, scale*buffer_length/scaleConst,-1)
+    mid_point_closer_edge = point_gen_2(midline_0, slope_midline, scale*buffer_length/scaleConst)[1]
+
+    mid_point_closer_edge_obj = Point(mid_point_closer_edge[0],mid_point_closer_edge[1]) 
+
     #finding mid point of farther edge of first projected rectangle 
-    mid_point_further_edge = point_gen(mid_point_closer_edge, slope_midline, full_mag_rect_dist)
+    mid_point_further_edge = point_gen_2(mid_point_closer_edge_obj, slope_midline, full_mag_rect_dist)[0]
 
-    #half of the closer edge length = (h*tan(w/2))/cos(alpha-(phi/2))
-    half_mag_closer_edge = (h*math.tan(omega/2))/math.cos(alpha-(phi/2))
-    #half of the further edge length = (h*tan(w/2))/cos(alpha+(phi/2))
-    half_mag_further_edge =(h*math.tan(omega/2))/math.cos(alpha+(phi/2))
+    #half of the closer edge length = (heightPix[0]*tan(w/2))/cos(alpha-(phi/2))
+    half_mag_closer_edge = (heightPix[0]*math.tan(omega/2))/math.cos(alpha-(phi/2))
+    #half of the further edge length = (heightPix[0]*tan(w/2))/cos(alpha+(phi/2))
+    half_mag_further_edge =(heightPix[0]*math.tan(omega/2))/math.cos(alpha+(phi/2))
 
-    slope_camera_view = (mountingPoint[1]- mid_point_closer_edge[1])/(mountingPoint[0]-mid_point_closer_edge[0])
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    #BIG DISCLAIMER - will have to change 1/slope
-    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+    #the slope associated w/ line of sight of camera
+    slope_camera_view = (490- mid_point_closer_edge[1])/(135-mid_point_closer_edge[0])
+    
+    # Obtaining on ground quadilateral points
     point1 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge)
-    point2 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge,-1)
+    point2 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge, -1)
+    point3 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge, -1)
+    point4 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge)
 
-    point3 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge)
-    point4 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge,-1)
-
-    pts = np.array([[10,5],[20,30],[70,20],[50,10]], np.int32)
+    # Use points to plot polygon
+    pts = np.array([point1, point2, point3, point4], np.int32)
     pts = pts.reshape((-1,1,2))
-    cv2.polylines(img,[pts],True,(0,255,255))
+    cv2.polylines(img, [pts], True, (255,255,0))
 
-    cv2.imshow('image', finalImage)
+    img = get_resized_for_display_img(img)
+
+    cv2.imshow('image', img)
     cv2.waitKey(0)
-# close the window
-    # cv2.destroyAllWindows()
     # for point in mountingPoints:
