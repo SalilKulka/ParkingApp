@@ -10,17 +10,27 @@ import numpy as np
 midLine = []
 numCircles = 10
 heights = []
+heightPix = []
 for x in range(30,60):
     heights.append(x*0.1)
 # heights = [x*0.1 for x in range(30,60)] #average height of light poles is 9 to 14 feet ~ 4.2m max
 centerPoints = []
 scalePoints = []
 scaleConst = 10
-theta = (66.75*math.pi)/180 #converting to radians
 mountingPoints = []
 area_scaling_factor = 1.4
 imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\map3.PNG'
 selectedPoints = []
+buffer_length = 5   #buffer length before the midpoint from which viewing must begin
+theta = (66.75*math.pi)/180    #diagonal angle FOV of camera (GIVEN!!)
+phi = 2*math.atan(0.8*math.tan(theta/2))  #angle of view larger side of camera resolution (4 in 4:3)
+omega = 2*math.atan(0.6*math.tan(theta/2))     #angle of view larger side of camera resolution (3 in 4:3)
+alpha = 0   #set later on in the code based on the height of the camera [angle of camera from negative z axis]
+
+point1 = [0,0]  #bottom right point of rectangle
+point2 = [0,0]  #bottom left point of rectangle
+point3 = [0,0]  #top left point of rectangle
+point4 = [0,0]  #top right point of rectangle
 
 def getBorderContour_road(img):
     low_yellow = (175,230,250)
@@ -97,11 +107,10 @@ def get_resized_for_display_img(img):
     w, h = int(w), int(h) # you need int for the cv2.resize
     return cv2.resize(img, (w, h))
 
-def centre_gen(point1,slope,distance):
+def point_gen(point1,slope,distance,dxn=1):
     slope_squared = pow(slope,2)
-    x = point1[0] + distance*abs(pow(1/(1+slope_squared),0.5))
-    y = point1[1] + distance*slope*abs(pow(1/(1+slope_squared),0.5))
-    centerPoints.append((int(x),int(y)))
+    x = point1[0] + dxn*distance*abs(pow(1/(1+slope_squared),0.5))
+    y = point1[1] + dxn*distance*slope*abs(pow(1/(1+slope_squared),0.5))
     # print(x,y)
     return (int(x),int(y))
 
@@ -160,68 +169,53 @@ if __name__=="__main__":
     # wait for a key to be pressed to exit
     cv2.waitKey(0)
     time.sleep(2)
-#     img = cv2.imread(imagePath, 1)
-#     img = get_resized_for_display_img(img)
-# # displaying the image
-#     cv2.imshow('image', img)
 
-# # setting mouse handler for the image
-# # and calling the click_event_1() function
-#     cv2.setMouseCallback('image', click_event_0)
-#     # wait for a key to be pressed to exit
-#     cv2.waitKey(0)
     getBorderContour_text(img)
     # Distance between selected midline extreme points
     distance = abs(pow(pow(midLine[0][0] - midLine[1][0],2) + pow(midLine[0][1] - midLine[1][1],2),0.5))
 
     diameter = (distance/numCircles) 
-    slope = ( midLine[1][1]- midLine[0][1])/(midLine[1][0]-midLine[0][0])
+    slope_midline = ( midLine[1][1]- midLine[0][1])/(midLine[1][0]-midLine[0][0])
 
     # Pixel distance of scale in image
     scale = abs(pow(pow(scalePoints[0][0] - scalePoints[1][0],2) + pow(scalePoints[0][1] - scalePoints[1][1],2),0.5))
     # actual distance = (scale constant)*(obtained magnitude)/scale
-    for index in range(numCircles):
-        if(index==0):
-            image = cv2.circle(img,centre_gen(midLine[0],slope,diameter/2),int(diameter*area_scaling_factor/2),(0,255,0))
-        else:
-            image = cv2.circle(img,centre_gen(centerPoints[index-1],slope,diameter),int(diameter*area_scaling_factor/2),(0,255,0))
 
     image = get_resized_for_display_img(image)
     cv2.imshow('image', image)
     cv2.waitKey(0)
+    for height in heights:
+        heightPix.append(height*scale/scaleConst)
+    
+    #the slope associated w/ line of sight of camera
 
-    # print(f"Working Distance - {workingDistance}")
-    f = open("C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\point_data.txt","w")
-    f.write(f"radius - {0.5*scaleConst*diameter/scale} \n")
-    for center in centerPoints:
-        for point in mountingPoints:
-            # print(f"Point - {point}")
-            f.write(f"point - {point[0]}, {point[1]}; ")
-            for height in heights:
-                f.write(f"center - {center[0]}, {center[1]}; ")
-                heightCoord = (height/scaleConst)*scale     # Height in pixels
-                resultantDistance = abs(pow(pow(point[1]-center[1],2) + pow(point[0]-center[0],2) + pow(heightCoord,2),0.5))
-                distance_to_center = abs(pow(pow(point[1]-center[1],2) + pow(point[0]-center[0],2),0.5))
-                alpha = math.atan(distance_to_center/heightCoord)
-                # print(f"Distance of point from center - {resultantDistance}")
-                Radius_fov = (diameter*area_scaling_factor/2)/math.cos(alpha)    # 
-                workingDistance = Radius_fov/math.tan(theta/2)
-                f.write(f"height - {height}; ")
-                f.write(f"Working Distance - {scaleConst*(workingDistance/scale)}; ")
-                f.write(f"Resultant Distance - {scaleConst*(resultantDistance/scale)}")
-                f.write("\n---x---\n")
-                if(distanceCompare(resultantDistance,workingDistance)):
-                    print(f"Point - {point} at height - {height} is at a distance of {scaleConst*(resultantDistance/scale)}")
-                    print(f"Working Distance - {scaleConst*(workingDistance/scale)}")
-                    selectedPoints.append((point[0],point[1],heightCoord))
-    finalImage = cv2.imread(imagePath,1)
-    finalImage = get_resized_for_display_img(finalImage)
-    print(selectedPoints)
-    for index in range(numCircles):
-        finalImage = cv2.circle(finalImage,centerPoints[index],int(diameter*(area_scaling_factor/2)),(0,255,0))
-    for index in range(len(selectedPoints)):
-        finalImage = cv2.circle(finalImage,(selectedPoints[index][0],selectedPoints[index][1]),10,(30,255,120))
-        # cv2.putText(finalImage, str(selectedPoints[index], selectedPoints[index][0], cv2.FONT_HERSHEY_SIMPLEX,1, (255, 0, 0), 2)
+    #distance b/w midpoints of closest edge and farthest edge of projected rectangle
+    full_mag_rect_dist = h*(math.tan(alpha+(phi/2)) - math.tan(alpha - (phi/2)))
+
+    #finding mid point of closest edge of first projected rectangle 
+    mid_point_closer_edge = point_gen(midLine[0], slope_midline, scale*buffer_length/scaleConst,-1)
+    #finding mid point of farther edge of first projected rectangle 
+    mid_point_further_edge = point_gen(mid_point_closer_edge, slope_midline, full_mag_rect_dist)
+
+    #half of the closer edge length = (h*tan(w/2))/cos(alpha-(phi/2))
+    half_mag_closer_edge = (h*math.tan(omega/2))/math.cos(alpha-(phi/2))
+    #half of the further edge length = (h*tan(w/2))/cos(alpha+(phi/2))
+    half_mag_further_edge =(h*math.tan(omega/2))/math.cos(alpha+(phi/2))
+
+    slope_camera_view = (mountingPoint[1]- mid_point_closer_edge[1])/(mountingPoint[0]-mid_point_closer_edge[0])
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #BIG DISCLAIMER - will have to change 1/slope
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+    point1 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge)
+    point2 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge,-1)
+
+    point3 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge)
+    point4 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge,-1)
+
+    pts = np.array([[10,5],[20,30],[70,20],[50,10]], np.int32)
+    pts = pts.reshape((-1,1,2))
+    cv2.polylines(img,[pts],True,(0,255,255))
+
     cv2.imshow('image', finalImage)
     cv2.waitKey(0)
 # close the window
