@@ -22,7 +22,7 @@ area_scaling_factor = 1.4
 imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\map3.PNG'
 selectedPoints = []
 
-def getMountPoints(img):
+def getBorderContour_road(img):
     low_yellow = (175,230,250)
     high_yellow = (185,235,255)
 
@@ -38,14 +38,6 @@ def getMountPoints(img):
     kernel = np.ones((3,3), dtype=np.uint8)
     combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_DILATE,kernel)
 
-    # findcontours
-    # contours, hier = cv2.findContours(combined_mask,cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-
-    selectedPoints = []
-    
-    # f = open("C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\coord.txt","w")
-
     for x in range(len(combined_mask)):
         for y in range(len(combined_mask[x])):
             if(combined_mask[x][y]==255):
@@ -53,7 +45,9 @@ def getMountPoints(img):
                 # f.write(str(x) + "," + str(y) + "\n")
                 mountingPoints.append((x,y))
 
-def getBuildingBorders(img):
+def getBorderContour_text(img):
+
+    # Upper and lower color limit
     low_yellow = (240,251,255)
     high_yellow = (240,251,255)
 
@@ -68,10 +62,6 @@ def getBuildingBorders(img):
     combined_mask = cv2.bitwise_or(yellow_mask, gray_mask)
     kernel = np.ones((3,3), dtype=np.uint8)
     combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_DILATE,kernel)
-    
-# nping it
-    # mask = np.ones(combined_mask.shape, dtype=np.uint8) * 255
-    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # findcontours
     cnts=cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -79,9 +69,7 @@ def getBuildingBorders(img):
     for c in cnts:
         cv2.drawContours(img, [c], -1, (255,0,255), thickness=1)
 
-    # selectedPoints = []
-    
-    # f = open("C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\coord.txt","w")
+    # write points in mounting list
     mountingPoints.clear()
     for y in range(len(img)):
         for x in range(len(img[y])):
@@ -91,11 +79,12 @@ def getBuildingBorders(img):
             if(b == 255 and g == 0 and r == 255):
                 mountingPoints.append((x,y))
                 # f.write(str(x) + "," + str(y) + "\n")
-    # print(mountingPoints)
 
 def get_resized_for_display_img(img):
+
+    # get screen height and width
     screen_w, screen_h = GetSystemMetrics(0), GetSystemMetrics(1)
-    #print("screen size",screen_w, screen_h)
+
     h,w,channel_nbr = img.shape
     # img get w of screen and adapt h
     h = h * (screen_w / w)
@@ -126,12 +115,8 @@ def click_event_0(event, x, y, flags, params):
 # checking for left mouse clicks
     if event == cv2.EVENT_LBUTTONDOWN:
         mountingPoints.append((x,y))
-# displaying the coordinates
-# on the Shell
-        # print(x, ' ', y)
 
-# displaying the coordinates
-# on the image window
+# displaying the coordinates on the image window
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(img, str(x) + ',' +str(y), (x,y), font,1, (255, 0, 0), 2)
         cv2.imshow('image', img)
@@ -141,12 +126,8 @@ def click_event_1(event, x, y, flags, params):
 # checking for left mouse clicks
     if event == cv2.EVENT_LBUTTONDOWN:
         midLine.append((x, y))
-# displaying the coordinates
-# on the Shell
-        # print(x, ' ', y)
 
-# displaying the coordinates
-# on the image window
+# displaying the coordinates on the image window
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(img, str(x) + ',' +str(y), (x,y), font,1, (255, 0, 0), 2)
         cv2.imshow('image', img)
@@ -155,14 +136,7 @@ def click_event_1(event, x, y, flags, params):
     if event==cv2.EVENT_RBUTTONDOWN:
         scalePoints.append((x,y))
 
-        
-
-# displaying the coordinates
-# on the Shell
-        # print(x, ' ', y)
-
-# displaying the coordinates
-# on the image window
+# displaying the coordinates on the image window
         font = cv2.FONT_HERSHEY_SIMPLEX
         b = img[y, x, 0]
         g = img[y, x, 1]
@@ -196,7 +170,7 @@ if __name__=="__main__":
 #     cv2.setMouseCallback('image', click_event_0)
 #     # wait for a key to be pressed to exit
 #     cv2.waitKey(0)
-    getBuildingBorders(img)
+    getBorderContour_text(img)
     # Distance between selected midline extreme points
     distance = abs(pow(pow(midLine[0][0] - midLine[1][0],2) + pow(midLine[0][1] - midLine[1][1],2),0.5))
 
