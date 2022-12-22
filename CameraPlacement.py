@@ -22,7 +22,7 @@ buffer_length = 5   #buffer length before the midpoint from which viewing must b
 theta = (66.75*math.pi)/180    #diagonal angle FOV of camera (GIVEN!!)
 phi = 2*math.atan(0.8*math.tan(theta/2))  #angle of view larger side of camera resolution (4 in 4:3)
 omega = 2*math.atan(0.6*math.tan(theta/2))     #angle of view larger side of camera resolution (3 in 4:3)
-alpha = 0   #set later on in the code based on the height of the camera [angle of camera from negative z axis]
+alpha = (75*math.pi)/180   #set later on in the code based on the height of the camera [angle of camera from negative z axis]
 
 # heights = [x*0.1 for x in range(30,60)] #average height of light poles is 9 to 14 feet ~ 4.2m max
 for x in range(30,60):
@@ -204,7 +204,8 @@ if __name__=="__main__":
     cv2.imshow('image', img)
 
     # Scale for pix to meter conversion
-    scaleConst = int(input('Scale: '))
+    # scaleConst = int(input('Scale: '))
+    scaleConst = 10
 
     # setting mouse handler for the image
     # and calling the click_event_1() function
@@ -214,18 +215,29 @@ if __name__=="__main__":
     cv2.waitKey(0)
     time.sleep(1)
 
+    img = cv2.imread(imagePath, 1)
+    img = get_resized_for_display_img(img)
+# displaying the image
+    cv2.imshow('image', img)
+
+# setting mouse handler for the image
+# and calling the click_event_1() function
+    cv2.setMouseCallback('image', click_event_mountingpoints)
+    # wait for a key to be pressed to exit
+    cv2.waitKey(0)
+
     # Get building borders
-    getBorderContour_text(img)
+    # getBorderContour_text(img)
 
     # Distance between selected midline extreme points
     distance = abs(pow(pow(midLine[0][0] - midLine[1][0],2) + pow(midLine[0][1] - midLine[1][1],2),0.5))
 
     # Slope of midline
-    slope_midline = ( midLine[1][1]- midLine[0][1])/(midLine[1][0]-midLine[0][0])
+    slope_midline = (midLine[1][1]-midLine[0][1])/(midLine[1][0]-midLine[0][0])
 
     # Pixel distance of scale in image
-    scale = abs(pow(pow(scalePoints[0][0] - scalePoints[1][0],2) + pow(scalePoints[0][1] - scalePoints[1][1],2),0.5))
     # actual distance(m) = (scale constant)*(obtained magnitude)/scale
+    scale = abs(pow(pow(scalePoints[0][0] - scalePoints[1][0],2) + pow(scalePoints[0][1] - scalePoints[1][1],2),0.5))
 
     # Display border contour results
     image = get_resized_for_display_img(img)
@@ -238,37 +250,43 @@ if __name__=="__main__":
 
     img = cv2.imread(imagePath, 1)
 
-    #distance b/w midpoints of closest edge and farthest edge of projected rectangle
-    full_mag_rect_dist = heightPix[0]*(math.tan(alpha+(phi/2)) - math.tan(alpha - (phi/2)))
+    # Setting alpha
+    g = math.sqrt(math.pow(midLine[0][0]-mountingPoints[0][0], 2) + math.pow(midLine[0][1]-mountingPoints[0][1], 2))
+    alpha = math.atan(g/heightPix[20])
 
+    #distance b/w midpoints of closest edge and farthest edge of projected rectangle
+    full_mag_rect_dist = heightPix[20]*(math.tan(alpha+(phi/2)) - math.tan(alpha - (phi/2)))
     midline_0 = Point(midLine[0][0],midLine[0][1]) 
 
     #finding mid point of closest edge of first projected rectangle 
-    mid_point_closer_edge = point_gen_2(midline_0, slope_midline, scale*buffer_length/scaleConst)[1]
+    mid_point_closer_edge = point_gen_2(midline_0, slope_midline, scale*buffer_length/scaleConst)[0]
 
-    mid_point_closer_edge_obj = Point(mid_point_closer_edge[0],mid_point_closer_edge[1]) 
-
-    #finding mid point of farther edge of first projected rectangle 
-    mid_point_further_edge = point_gen_2(mid_point_closer_edge_obj, slope_midline, full_mag_rect_dist)[0]
-
-    #half of the closer edge length = (heightPix[0]*tan(w/2))/cos(alpha-(phi/2))
-    half_mag_closer_edge = (heightPix[0]*math.tan(omega/2))/math.cos(alpha-(phi/2))
-    #half of the further edge length = (heightPix[0]*tan(w/2))/cos(alpha+(phi/2))
-    half_mag_further_edge =(heightPix[0]*math.tan(omega/2))/math.cos(alpha+(phi/2))
+    mid_point_closer_edge_obj = Point(mid_point_closer_edge[0],mid_point_closer_edge[1])
 
     #the slope associated w/ line of sight of camera
-    slope_camera_view = (490- mid_point_closer_edge[1])/(135-mid_point_closer_edge[0])
+    slope_camera_view = (mountingPoints[0][1]- mid_point_closer_edge[1])/(mountingPoints[0][0]-mid_point_closer_edge[0]) 
+
+    #finding mid point of farther edge of first projected rectangle 
+    mid_point_further_edge = point_gen_2(mid_point_closer_edge_obj, slope_camera_view, full_mag_rect_dist)[1]
+
+    #half of the closer edge length = (heightPix[20]*tan(w/2))/cos(alpha-(phi/2))
+    half_mag_closer_edge = (heightPix[20]*math.tan(omega/2))/math.cos(alpha-(phi/2))
+    #half of the further edge length = (heightPix[20]*tan(w/2))/cos(alpha+(phi/2))
+    half_mag_further_edge =(heightPix[20]*math.tan(omega/2))/math.cos(alpha+(phi/2))
     
     # Obtaining on ground quadilateral points
     point1 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge)
     point2 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge, -1)
-    point3 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge, -1)
-    point4 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge)
+    point3 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge)
+    point4 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge, -1)
 
     # Use points to plot polygon
     pts = np.array([point1, point2, point3, point4], np.int32)
     pts = pts.reshape((-1,1,2))
     cv2.polylines(img, [pts], True, (255,255,0))
+    cv2.circle(img, (int(mid_point_closer_edge[0]),int(mid_point_closer_edge[1])), 20, (255,0,0),5)
+    cv2.line(img, (int(mid_point_closer_edge[0]),int(mid_point_closer_edge[1])), (midLine[0][0],midLine[0][1]), (255,0,255),3)
+    cv2.line(img, (midLine[0][0],midLine[0][1]), (midLine[1][0],midLine[1][1]), (255,0,0), 3)
 
     img = get_resized_for_display_img(img)
 
