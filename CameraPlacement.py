@@ -342,6 +342,11 @@ if __name__=="__main__":
     #     for BETA in range (0,360):
     # if(BETA==180 or BETA==0 or BETA==360):
     #     continue
+
+    #~~~~~~#
+    #Iterate alpha from values > phi/2
+    #~~~~~~#
+
     alpha = 30
     BETA = 60
     ALPHA = alpha*math.pi/180
