@@ -3,7 +3,7 @@ import math
 from win32api import GetSystemMetrics
 import time
 import numpy as np
-
+#testing
 imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\map3.PNG'
 
 point = []
