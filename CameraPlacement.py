@@ -4,9 +4,12 @@ import math
 from win32api import GetSystemMetrics
 import time
 import numpy as np
+import os
 
 # Image path
-imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\map3.PNG'
+imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking'
+imageName = "map3"
+resizedImageName = imageName + "_resized"
 
 numCircles = 10
 
@@ -18,7 +21,7 @@ scalePoints = []
 mountingPoints = []
 selectedPoints = []
 
-buffer_length = 5   #buffer length before the midpoint from which viewing must begin
+buffer_length = 0   #buffer length before the midpoint from which viewing must begin
 theta = (66.75*math.pi)/180    #diagonal angle FOV of camera (GIVEN!!)
 phi = 2*math.atan(0.8*math.tan(theta/2))  #angle of view larger side of camera resolution (4 in 4:3)
 omega = 2*math.atan(0.6*math.tan(theta/2))     #angle of view larger side of camera resolution (3 in 4:3)
@@ -42,6 +45,45 @@ class Point:
 
 # function to display the coordinates of
 # of the points clicked on the image
+
+def maskRoadsnParkings(img):
+    image = img
+    # convert image to HSV
+    #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+
+
+    # define color ranges
+    low_yellow = (255,255,255)
+    high_yellow = (255,255,255)
+
+    # create masks
+    yellow_mask = cv2.inRange(img, low_yellow, high_yellow )
+
+    # combine masks
+    kernel = np.ones((3,3), dtype=np.uint8)
+    combined_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_DILATE,kernel)
+
+
+    # findcontours
+    cnts=cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    for c in cnts:
+        # if(isContourBad(c)):
+        cv2.drawContours(img, [c], -1, (255,0,255), thickness=1)
+
+    mask = np.ones(img.shape[:2], dtype="uint8") * 255
+
+    for contour in cnts:
+        area = cv2.contourArea(contour)
+        if area > 4000:
+            cv2.drawContours(mask, [contour], -1, 0, -1)
+
+    mask = cv2.bitwise_not(mask)
+
+    image = cv2.bitwise_and(img, img, mask=mask)
+    return mask
+
 def getBorderContour_road(img):
     low_yellow = (175,230,250)
     high_yellow = (185,235,255)
@@ -114,13 +156,6 @@ def get_resized_for_display_img(img):
     w, h = w*0.9, h*0.9 # because you don't want it to be that big, right ?
     w, h = int(w), int(h) # you need int for the cv2.resize
     return cv2.resize(img, (w, h))
-
-def point_gen(point1,slope,distance,dxn=1):
-    slope_squared = pow(slope,2)
-    x = point1[0] + distance*abs(pow(1/(1+slope_squared),0.5))
-    y = point1[1] + dxn*distance*slope*abs(pow(1/(1+slope_squared),0.5))
-    # print(x,y)
-    return [int(x),int(y)]
 
 def point_gen_2(source, m, l):
     # m is the slope of line, and the
@@ -197,8 +232,12 @@ def click_event_1(event, x, y, flags, params):
 if __name__=="__main__":
 
     # reading and resizing the image
-    img = cv2.imread(imagePath, 1)
+    img = cv2.imread(os.path.join(imagePath, imageName+".PNG"), 1)
+    
     img = get_resized_for_display_img(img)
+    img = cv2.imwrite(os.path.join(imagePath, resizedImageName+".PNG"), img)
+
+    img = cv2.imread(os.path.join(imagePath, resizedImageName+".PNG"), 1)
 
     # displaying the image
     cv2.imshow('image', img)
@@ -215,8 +254,8 @@ if __name__=="__main__":
     cv2.waitKey(0)
     time.sleep(1)
 
-    img = cv2.imread(imagePath, 1)
-    img = get_resized_for_display_img(img)
+    img = cv2.imread(os.path.join(imagePath, resizedImageName+".PNG"), 1)
+    # img = get_resized_for_display_img(img)
 # displaying the image
     cv2.imshow('image', img)
 
@@ -229,67 +268,151 @@ if __name__=="__main__":
     # Get building borders
     # getBorderContour_text(img)
 
-    # Distance between selected midline extreme points
-    distance = abs(pow(pow(midLine[0][0] - midLine[1][0],2) + pow(midLine[0][1] - midLine[1][1],2),0.5))
+    # # Distance between selected midline extreme points
+    # distance = abs(pow(pow(midLine[0][0] - midLine[1][0],2) + pow(midLine[0][1] - midLine[1][1],2),0.5))
 
-    # Slope of midline
-    slope_midline = (midLine[1][1]-midLine[0][1])/(midLine[1][0]-midLine[0][0])
+    # # Slope of midline
+    # slope_midline = (midLine[1][1]-midLine[0][1])/(midLine[1][0]-midLine[0][0])
 
-    # Pixel distance of scale in image
-    # actual distance(m) = (scale constant)*(obtained magnitude)/scale
+    # # Pixel distance of scale in image
+    # # actual distance(m) = (scale constant)*(obtained magnitude)/scale
     scale = abs(pow(pow(scalePoints[0][0] - scalePoints[1][0],2) + pow(scalePoints[0][1] - scalePoints[1][1],2),0.5))
 
-    # Display border contour results
-    image = get_resized_for_display_img(img)
-    cv2.imshow('image', image)
-    cv2.waitKey(0)
+    # # Display border contour results
+    # # image = get_resized_for_display_img(img)
+    # # cv2.imshow('image', img)
+    # # cv2.waitKey(0)
 
-    # Converting height in meter array to height in pixel array
+    # # Converting height in meter array to height in pixel array
     for height in heights:
         heightPix.append(height*scale/scaleConst)
 
-    img = cv2.imread(imagePath, 1)
+    img = cv2.imread(os.path.join(imagePath, resizedImageName+".PNG"), 1)
+
+    road = maskRoadsnParkings(img)
 
     # Setting alpha
-    g = math.sqrt(math.pow(midLine[0][0]-mountingPoints[0][0], 2) + math.pow(midLine[0][1]-mountingPoints[0][1], 2))
-    alpha = math.atan(g/heightPix[20])
+    # g = math.sqrt(math.pow(midLine[0][0]-mountingPoints[0][0], 2) + math.pow(midLine[0][1]-mountingPoints[0][1], 2))
+    # alpha = math.atan(g/heightPix[20]) + phi/2
 
-    #distance b/w midpoints of closest edge and farthest edge of projected rectangle
-    full_mag_rect_dist = heightPix[20]*(math.tan(alpha+(phi/2)) - math.tan(alpha - (phi/2)))
-    midline_0 = Point(midLine[0][0],midLine[0][1]) 
+    # #distance b/w midpoints of closest edge and farthest edge of projected rectangle
+    # full_mag_rect_dist = heightPix[20]*(math.tan(alpha+(phi/2)) - math.tan(alpha - (phi/2)))
+    # midline_0 = Point(midLine[0][0],midLine[0][1]) 
 
-    #finding mid point of closest edge of first projected rectangle 
-    mid_point_closer_edge = point_gen_2(midline_0, slope_midline, scale*buffer_length/scaleConst)[0]
+    # #finding mid point of closest edge of first projected rectangle 
+    # mid_point_closer_edge = [midLine[0][0],midLine[0][1]]
 
-    mid_point_closer_edge_obj = Point(mid_point_closer_edge[0],mid_point_closer_edge[1])
+    # #the slope associated w/ line of sight of camera
+    # slope_camera_view = (mid_point_closer_edge[1]-mountingPoints[0][1])/(mid_point_closer_edge[0]-mountingPoints[0][0]) 
 
-    #the slope associated w/ line of sight of camera
-    slope_camera_view = (mountingPoints[0][1]- mid_point_closer_edge[1])/(mountingPoints[0][0]-mid_point_closer_edge[0]) 
+    # #finding mid point of farther edge of first projected rectangle 
+    # # mid_point_further_edge = point_gen_2(Point(mid_point_closer_edge[0],mid_point_closer_edge[1]), slope_camera_view, full_mag_rect_dist)[1]
 
-    #finding mid point of farther edge of first projected rectangle 
-    mid_point_further_edge = point_gen_2(mid_point_closer_edge_obj, slope_camera_view, full_mag_rect_dist)[1]
+    # mid_point_further_edges = point_gen_2(Point(mid_point_closer_edge[0],mid_point_closer_edge[1]), slope_camera_view, full_mag_rect_dist)
+    # mid_point_further_edge = mid_point_further_edges[1]
+    # if(mid_point_closer_edge[0]<mountingPoints[0][0]):
+    #     mid_point_further_edge = mid_point_further_edges[0]
 
-    #half of the closer edge length = (heightPix[20]*tan(w/2))/cos(alpha-(phi/2))
-    half_mag_closer_edge = (heightPix[20]*math.tan(omega/2))/math.cos(alpha-(phi/2))
+
+    # #half of the closer edge length = (heightPix[20]*tan(w/2))/cos(alpha-(phi/2))
+    # half_mag_closer_edge = (heightPix[20]*math.tan(omega/2))/math.cos(alpha+(phi/2))
+    # #half of the further edge length = (heightPix[20]*tan(w/2))/cos(alpha+(phi/2))
+    # half_mag_further_edge =(heightPix[20]*math.tan(omega/2))/math.cos(alpha-(phi/2))
+    
+    # # Obtaining on ground quadilateral points
+    # point1 = point_gen_2(Point(mid_point_closer_edge[0],mid_point_closer_edge[1]), -1/slope_camera_view, half_mag_closer_edge)[0]
+    # point2 = point_gen_2(Point(mid_point_closer_edge[0],mid_point_closer_edge[1]), -1/slope_camera_view, half_mag_closer_edge)[1]
+    # point3 = point_gen_2(Point(mid_point_further_edge[0],mid_point_further_edge[1]), -1/slope_camera_view, half_mag_further_edge)[0]
+    # point4 = point_gen_2(Point(mid_point_further_edge[0],mid_point_further_edge[1]), -1/slope_camera_view, half_mag_further_edge)[1]
+
+    # # Use points to plot polygon
+    # pts = np.array([point1, point2, point3, point4], np.int32)
+    # pts = pts.reshape((-1,1,2))
+    # cv2.polylines(img, [pts], True, (255,255,0))
+ 
+
+    # img = get_resized_for_display_img(img)
+    minArea = 100000
+    mountingPoint = mountingPoints[0]
+    fp1 =0
+    fp2 =0
+    fp3 =0
+    fp4 =0
+    # for alpha in range(0,75):
+    #     for BETA in range (0,360):
+    # if(BETA==180 or BETA==0 or BETA==360):
+    #     continue
+    alpha = 30
+    BETA = 60
+    ALPHA = alpha*math.pi/180
+    inroad = road
+    inimg = img
+
+
+    p_closer = heightPix[20]*math.tan(ALPHA - (phi/2))
+    p_further = heightPix[20]*math.tan(ALPHA + (phi/2)) - p_closer
+
+    slope_beta = math.tan(BETA*math.pi/180)
+
+    p_closer_edge = point_gen_2(Point(mountingPoint[0],mountingPoint[1]), slope_beta, p_closer)[0]
+    p_further_edge = point_gen_2(Point(p_closer_edge[0],p_closer_edge[1]), slope_beta, p_further)[1]
+    if(p_closer_edge[0]<mountingPoint[0]):
+        p_further_edge = point_gen_2(Point(p_closer_edge[0],p_closer_edge[1]), slope_beta, p_further)[0]
+
+
+    closer_edge = (heightPix[20]*math.tan(omega/2))/math.cos(ALPHA+(phi/2))
     #half of the further edge length = (heightPix[20]*tan(w/2))/cos(alpha+(phi/2))
-    half_mag_further_edge =(heightPix[20]*math.tan(omega/2))/math.cos(alpha+(phi/2))
+    further_edge =(heightPix[20]*math.tan(omega/2))/math.cos(ALPHA-(phi/2))
     
     # Obtaining on ground quadilateral points
-    point1 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge)
-    point2 = point_gen(mid_point_closer_edge, -1/slope_camera_view, half_mag_closer_edge, -1)
-    point3 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge)
-    point4 = point_gen(mid_point_further_edge, -1/slope_camera_view, half_mag_further_edge, -1)
+    point1 = point_gen_2(Point(p_closer_edge[0],p_closer_edge[1]), -1/slope_beta, closer_edge)[0]
+    point2 = point_gen_2(Point(p_closer_edge[0],p_closer_edge[1]), -1/slope_beta, closer_edge)[1]
+    point3 = point_gen_2(Point(p_further_edge[0],p_further_edge[1]), -1/slope_beta, further_edge)[0]
+    point4 = point_gen_2(Point(p_further_edge[0],p_further_edge[1]), -1/slope_beta, further_edge)[1]
 
-    # Use points to plot polygon
-    pts = np.array([point1, point2, point3, point4], np.int32)
+    pt = np.array([point1, point2, point3, point4], np.int32)
+    pt = pt.reshape((-1,1,2))
+
+    cv2.fillPoly(inimg, [pt], (251,251,251))
+
+    mask1 = cv2.inRange(inimg, (251,251,251), (251,251,251))
+    
+    # inroad = cv2.cvtColor(inroad, cv2.COLOR_BGR2GRAY)
+    image1 = np.subtract(inroad, mask1)
+
+    cv2.imshow("subtracted mask",image1)
+    cv2.waitKey(0)
+
+    cc = cv2.findContours(image1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cc = cc[0] if len(cc) == 2 else cc[1]
+
+    area_sum = 0
+    for contour in cc:
+        area = cv2.contourArea(contour)
+        area_sum = area_sum+area
+    
+    if minArea > area_sum:
+        minArea = area_sum
+        fp1 = point1
+        fp2 = point2
+        fp3 = point3
+        fp4 = point4
+
+    img = cv2.imread(os.path.join(imagePath, resizedImageName+".PNG"), 1)
+    print(f"fp1 = {fp1};fp2 = {fp2};fp3 = {fp3};fp4 = {fp4};")
+    pts = np.array([fp1, fp2, fp3, fp4], np.int32)
     pts = pts.reshape((-1,1,2))
     cv2.polylines(img, [pts], True, (255,255,0))
-    cv2.circle(img, (int(mid_point_closer_edge[0]),int(mid_point_closer_edge[1])), 20, (255,0,0),5)
-    cv2.line(img, (int(mid_point_closer_edge[0]),int(mid_point_closer_edge[1])), (midLine[0][0],midLine[0][1]), (255,0,255),3)
-    cv2.line(img, (midLine[0][0],midLine[0][1]), (midLine[1][0],midLine[1][1]), (255,0,0), 3)
-
-    img = get_resized_for_display_img(img)
+    cv2.circle(img, (mountingPoint[0], mountingPoint[1]), 5, (255,0,0),2)
 
     cv2.imshow('image', img)
     cv2.waitKey(0)
-    # for point in mountingPoints:
+
+    # for point in mountingPoints:  
+    # cv2.circle(img, (int(mountingPoints[0][0]),int(mountingPoints[0][1])), 20, (255,0,0),5)
+    # cv2.circle(img, (int(mid_point_closer_edge[0]),int(mid_point_closer_edge[1])), 7, (255,0,255),5)
+    # cv2.circle(img, (int(mid_point_further_edge[0]),int(mid_point_further_edge[1])), 7, (0,0,255),5)
+    # cv2.line(img, (int(mid_point_closer_edge[0]),int(mid_point_closer_edge[1])), (midLine[0][0],midLine[0][1]), (255,0,255),3)
+    # cv2.line(img, (midLine[0][0],midLine[0][1]), (midLine[1][0],midLine[1][1]), (255,0,0), 3)
+    # cv2.line(img, (mountingPoints[0][0],mountingPoints[0][1]), (int(mid_point_closer_edge[0]),int(mid_point_closer_edge[1])), (255,0,0), 3)
+    # cv2.line(img, (mountingPoints[0][0],mountingPoints[0][1]), (int(mid_point_further_edge[0]),int(mid_point_further_edge[1])), (255,0,0), 3)

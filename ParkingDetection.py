@@ -22,7 +22,7 @@ cv2.drawContours(mask, [max_contour], -1, 255, -1)
 cv2.drawContours(image, [max_contour], -1, 255, -1)
 thresholded = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)[1]
 
-cv2.imshow("Image", mask)
+cv2.imshow("Image", image)
 cv2.waitKey(0)
 
 occupied = np.sum(np.logical_and(mask, thresholded))
