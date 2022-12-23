@@ -7,11 +7,9 @@ import numpy as np
 import os
 
 # Image path
-imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking'
+imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\ParkingApp'
 imageName = "map3"
 resizedImageName = imageName + "_resized"
-
-numCircles = 10
 
 midLine = []
 heights = []
@@ -338,31 +336,32 @@ if __name__=="__main__":
     fp2 =0
     fp3 =0
     fp4 =0
-    # for alpha in range(0,75):
+    # for alpha in range(30,60):
     #     for BETA in range (0,360):
     # if(BETA==180 or BETA==0 or BETA==360):
     #     continue
 
     #~~~~~~#
-    #Iterate alpha from values > phi/2
+    #Iterate alpha from values > phi/2  and < 90-phi/2
     #~~~~~~#
 
     alpha = 30
-    BETA = 60
+    beta = 60
     ALPHA = alpha*math.pi/180
-    inroad = road
-    inimg = img
+    BETA = beta*math.pi/180
+    roadCopy = road
+    imgCopy = img
 
 
     p_closer = heightPix[20]*math.tan(ALPHA - (phi/2))
-    p_further = heightPix[20]*math.tan(ALPHA + (phi/2)) - p_closer
+    p_further = heightPix[20]*math.tan(ALPHA + (phi/2))
 
     slope_beta = math.tan(BETA*math.pi/180)
 
     p_closer_edge = point_gen_2(Point(mountingPoint[0],mountingPoint[1]), slope_beta, p_closer)[0]
-    p_further_edge = point_gen_2(Point(p_closer_edge[0],p_closer_edge[1]), slope_beta, p_further)[1]
+    p_further_edge = point_gen_2(Point(mountingPoint[0],mountingPoint[1]), slope_beta, p_further)[1]
     if(p_closer_edge[0]<mountingPoint[0]):
-        p_further_edge = point_gen_2(Point(p_closer_edge[0],p_closer_edge[1]), slope_beta, p_further)[0]
+        p_further_edge = point_gen_2(Point(mountingPoint[0],mountingPoint[1]), slope_beta, p_further)[0]
 
 
     closer_edge = (heightPix[20]*math.tan(omega/2))/math.cos(ALPHA+(phi/2))
@@ -378,12 +377,12 @@ if __name__=="__main__":
     pt = np.array([point1, point2, point3, point4], np.int32)
     pt = pt.reshape((-1,1,2))
 
-    cv2.fillPoly(inimg, [pt], (251,251,251))
+    cv2.fillPoly(imgCopy, [pt], (251,251,251))
 
-    mask1 = cv2.inRange(inimg, (251,251,251), (251,251,251))
+    mask1 = cv2.inRange(imgCopy, (251,251,251), (251,251,251))
     
-    # inroad = cv2.cvtColor(inroad, cv2.COLOR_BGR2GRAY)
-    image1 = np.subtract(inroad, mask1)
+    # roadCopy = cv2.cvtColor(roadCopy, cv2.COLOR_BGR2GRAY)
+    image1 = np.subtract(roadCopy, mask1)
 
     cv2.imshow("subtracted mask",image1)
     cv2.waitKey(0)
