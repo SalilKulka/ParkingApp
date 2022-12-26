@@ -4,9 +4,21 @@ from win32api import GetSystemMetrics
 import time
 import numpy as np
 #testing
-imagePath = 'C:\\Users\\Salil kulkarni\\Desktop\\TARQ\\Parking\\map3.PNG'
+imagePath = '.\\map3_1.PNG'
 
 point = []
+selectedPoints = []
+
+def click_event_selectedpoints(event, x, y, flags, params):
+
+# checking for left mouse clicks
+    if event == cv2.EVENT_LBUTTONDOWN:
+        selectedPoints.append([x,y])
+
+# displaying the coordinates on the image window
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(image, str(x) + ',' +str(y), (x,y), font,1, (255, 0, 0), 2)
+        cv2.imshow('orig', image)
 
 def isContourBad(c):
     peri = cv2.arcLength(c, True)
@@ -40,7 +52,40 @@ def click_event_0(event, x, y, flags, params):
         cv2.putText(img, str(b) + ',' +str(g) + ',' + str(r),(x,y), font, 1,(255, 255, 0), 2)
         cv2.imshow('image', img)
 
-        
+def getBorderContour_text(img):
+
+    # Upper and lower color limit
+    low_yellow = (240,251,255)
+    high_yellow = (240,251,255)
+
+    low_gray = (244,243,241)
+    high_gray = (244,243,241)
+
+    # create masks
+    yellow_mask = cv2.inRange(img, low_yellow, high_yellow )
+    gray_mask = cv2.inRange(img, low_gray, high_gray)
+
+    # combine masks
+    combined_mask = cv2.bitwise_or(yellow_mask, gray_mask)
+    kernel = np.ones((3,3), dtype=np.uint8)
+    combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_DILATE,kernel)
+
+    # findcontours
+    cnts=cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    for c in cnts:
+        cv2.drawContours(img, [c], -1, (255,0,255), thickness=1)
+    cv2.imshow("image",img)
+    cv2.waitKey(0)
+
+    # write points in mounting list
+    # # mountingPoints.clear()
+    # for y in range(len(img)):
+    #     for x in range(len(img[y])):
+    #         b = img[y, x, 0]
+    #         g = img[y, x, 1]
+    #         r = img[y, x, 2]
+      
        
 if __name__=="__main__":
 
@@ -51,7 +96,17 @@ if __name__=="__main__":
     # convert image to HSV
     #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
+    getBorderContour_text(img)
 
+    low_yellow = (240,251,255)
+    high_yellow = (240,251,255)
+
+    low_gray = (244,243,241)
+    high_gray = (244,243,241)
+
+    cv2.imshow("orig",image)
+    cv2.setMouseCallback('orig', click_event_0)
+    cv2.waitKey(0)
 
     # define color ranges
     low_yellow = (255,255,255)
@@ -102,6 +157,69 @@ if __name__=="__main__":
     # f.close()
     cv2.imshow('Mask',mask)
     cv2.waitKey(0)
+
+    cv2.imshow("orig",image)
+    cv2.setMouseCallback('orig', click_event_selectedpoints)
+    cv2.waitKey(0)
+
+    low_yellow = (240,251,255)
+    high_yellow = (240,251,255)
+
+    low_gray = (244,243,241)
+    high_gray = (244,243,241)
+
+    yellow_mask = cv2.inRange(img, low_yellow, high_yellow )
+    gray_mask = cv2.inRange(img, low_gray, high_gray)
+
+    # combine masks
+
+    original_frame = cv2.imread(imagePath)
+    original_frame = get_resized_for_display_img(original_frame)
+    points = np.array(selectedPoints)
+    blank = np.zeros(original_frame.shape[:2], dtype='uint8')
+    poly_pts = np.array( points ,dtype=np.int32)
+    poly_pts = poly_pts.reshape((-1, 1, 2))
+    polymask = cv2.fillPoly(blank, pts=[poly_pts],color=255)
+# pts - location of the corners of the roi
+    masked = cv2.bitwise_and(original_frame,original_frame,mask=polymask)
+    combined_mask = cv2.bitwise_or(yellow_mask, gray_mask)
+    masked = cv2.bitwise_and(masked,masked,mask=combined_mask)
+
+    # im = cv2.cvtColor (im, cv2.COLOR_BGR2GRAY)
+
+    cv2.imshow("out", masked)
+    cv2.waitKey(0)
+
+    if(255 in masked):
+        print(True)
+    else:
+        print(False)
+
+    operatedImage = cv2.cvtColor(masked, cv2.COLOR_BGR2GRAY)
+    
+    # modify the data type
+    # setting to 32-bit floating point
+    operatedImage = np.float32(operatedImage)
+    
+    # apply the cv2.cornerHarris method
+    # to detect the corners with appropriate
+    # values as input parameters
+    dest = cv2.cornerHarris(operatedImage, 2, 5, 0.07)
+    
+    # Results are marked through the dilated corners
+    dest = cv2.dilate(dest, None)
+    
+    # Reverting back to the original image,
+    # with optimal threshold value
+    original_frame[dest > 0.01 * dest.max()]=[0, 0, 255]
+    
+    # the window showing output image with corners
+    cv2.imshow('Image with Borders', original_frame)
+    
+    # De-allocate any associated memory usage
+    if cv2.waitKey(0) & 0xff == 27:
+        cv2.destroyAllWindows()
+
 
     # for x in range(len(image)):
     #     for y in range(len(image[x])):
