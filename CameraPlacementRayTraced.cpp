@@ -863,3 +863,10 @@ int main(){
     k = cv::waitKey(0); // Wait for a keystroke in the window
     return 0;
 }
+
+//NOTES: 
+//Wrong final output
+//Not exponentially faster
+//Potential Improvements
+//Increase angle step size
+//sort in ascending order after first run ?
